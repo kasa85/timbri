@@ -210,6 +210,12 @@ ion-modal.personal-sheet {
 .personal-panel ion-range ion-label { font-size: 13px; color: var(--muted); }
 .personal-hint { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0 22px; }
 .personal-confirm { min-height: 48px; --box-shadow: none; font-weight: 650; }
+.stamp-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stamp-confirm-actions ion-button { min-width: 0; margin-inline: 0; --padding-start: 8px; --padding-end: 8px; white-space: nowrap; }
+.entry-sheet .confirm-pause { --background: linear-gradient(135deg, var(--ring-pause-start), var(--ring-pause-end)); --color: #fff; }
+.entry-sheet .confirm-finish { --background: linear-gradient(135deg, var(--neutral-icon-start), var(--neutral-icon-end)); --color: #fff; }
+.entry-sheet .confirm-whatsapp { --background: #25d366; --color: #fff; }
+.entry-sheet .confirm-whatsapp ion-icon { margin-inline: 0 6px; font-size: 20px; }
 
 /* Include selettore, orario e conferma anche quando l’aiuto occupa due righe. */
 ion-modal.entry-sheet { --height: min(calc(480px + env(safe-area-inset-bottom)), 95dvh); }
@@ -219,8 +225,10 @@ ion-modal.entry-sheet { --height: min(calc(480px + env(safe-area-inset-bottom)),
 .entry-sheet ion-datetime::part(wheel-item active) { font-size: 28px; font-weight: 650; }
 
 .entry-sheet .exit-segment { margin-top: 8px; }
-.entry-sheet .exit-segment ion-segment-button { --indicator-color: var(--status-pause); }
-.entry-sheet .exit-segment.finish-selected ion-segment-button { --indicator-color: var(--status-remaining); }
+.entry-sheet .exit-segment { --exit-gradient: linear-gradient(135deg, var(--ring-pause-start), var(--ring-pause-end)); }
+.entry-sheet .exit-segment.finish-selected { --exit-gradient: linear-gradient(135deg, var(--neutral-icon-start), var(--neutral-icon-end)); }
+.entry-sheet .exit-segment ion-segment-button { --indicator-color: var(--exit-gradient); }
+.entry-sheet .exit-segment ion-segment-button::part(indicator-background) { background: var(--exit-gradient); }
 .state-finished { --state-color: var(--status-work); }
 
 /* Le impostazioni condividono superfici e controlli arrotondati della home. */
@@ -243,6 +251,17 @@ ion-modal.entry-sheet { --height: min(calc(480px + env(safe-area-inset-bottom)),
 .settings-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ion-color-primary); font-size: 16px; text-decoration: none; margin: 0 0 18px -5px; min-height: 32px; }
 .settings-fields { display: grid; gap: 20px; }
 .settings-fields ion-toggle { width: 100%; }
+.settings-group .notification-toggle {
+  display: block;
+  width: 100%;
+  margin-block: 20px;
+  padding: 18px 6px;
+  border-block: 1px solid var(--ion-border-color, var(--surface-border));
+}
+.settings-group .notification-toggle + .notification-toggle {
+  margin-top: -20px;
+  border-top: 0;
+}
 .settings-fields ion-input, .settings-fields ion-select { --padding-start: 0; --padding-end: 0; font-size: 16px; }
 .settings-footnote { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 16px 10px; }
 .settings-page h1, .register-page > h1 { margin-bottom: 24px; }

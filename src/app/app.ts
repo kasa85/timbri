@@ -1,13 +1,15 @@
 import { Component, inject } from '@angular/core';
-import { IonApp, IonRouterOutlet, IonModal, IonContent, IonButton } from '@ionic/angular';
+import { IonApp, IonRouterOutlet, IonModal, IonContent, IonButton, IonToast } from '@ionic/angular';
+import { ExitNotificationService } from './exit-notification.service';
 import { InstallGuideService } from './install-guide.service';
 import { ThemeService } from './theme.service';
 import { StoragePersistenceService } from './storage-persistence.service';
 
 @Component({
   selector: 'app-root',
-  imports: [IonApp, IonRouterOutlet, IonModal, IonContent, IonButton],
+  imports: [IonApp, IonRouterOutlet, IonModal, IonContent, IonButton, IonToast],
   template: `<ion-app><ion-router-outlet />
+    <ion-toast [isOpen]="guide.updateReady()" message="Nuova versione disponibile" position="top" [buttons]="updateButtons" />
     <ion-modal class="install-guide-modal" [isOpen]="guide.open()" (didDismiss)="guide.close()" aria-labelledby="install-guide-title">
       <ng-template><ion-content><section class="install-guide">
         <img src="icons/icon-192.png" width="64" height="64" alt="" />
@@ -29,6 +31,8 @@ import { StoragePersistenceService } from './storage-persistence.service';
   </ion-app>`,
 })
 export class App {
+  private readonly notifications = inject(ExitNotificationService);
+  protected readonly updateButtons = [{ text: 'Aggiorna', handler: () => this.guide.reload() }];
   private readonly persistence = inject(StoragePersistenceService);
   protected readonly guide = inject(InstallGuideService);
   protected readonly theme = inject(ThemeService);

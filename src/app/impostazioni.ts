@@ -6,10 +6,12 @@ import { registerDuration } from './registro-data';
 import { DatePipe } from '@angular/common';
 import { version } from '../../package.json';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { AlertController, ToastController, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent } from '@ionic/angular';
+import { AlertController, ToastController, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent, IonToggle, IonInput } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline, timeOutline, cafeOutline, ticketOutline, folderOutline, chevronForwardOutline, chevronBackOutline } from 'ionicons/icons';
 import { InstallGuideService } from './install-guide.service';
+import { ExitNotificationService, NotificationKind } from './exit-notification.service';
+import { WhatsappService } from './whatsapp.service';
 import { ThemeService } from './theme.service';
 import { WorkdayService } from './workday.service';
 import { StoragePersistenceService } from './storage-persistence.service';
@@ -18,7 +20,7 @@ import { dayKey, StampKind } from './workday';
 
 @Component({
   selector: 'app-impostazioni',
-  imports: [RouterLink, WorkSettingsForm, DatePipe, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent],
+  imports: [RouterLink, WorkSettingsForm, DatePipe, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent, IonToggle, IonInput],
   template: `<ion-content><main class="page settings-page">
     @if (section()) { <a class="settings-back" routerLink="/impostazioni"><ion-icon name="chevron-back-outline" aria-hidden="true" />Impostazioni</a> }
     <h1>{{ title() }}</h1>
@@ -88,6 +90,35 @@ import { dayKey, StampKind } from './workday';
       @if (store.error()) { <p class="settings-error" role="alert">{{ store.error() }}</p> }
     </ion-card-content></ion-card>
     }
+    @if (section() === 'whatsapp') {
+    <ion-card class="settings-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><div><h2>Avvisa su WhatsApp</h2><p>Un messaggio quando chiudi la giornata.</p></div></header>
+      <p>Con “Conferma e notifica” salvi l’uscita e apri la chat con il messaggio pronto. Per inviarlo, premi Invia in WhatsApp.</p>
+      <ion-toggle class="notification-toggle" justify="space-between" [checked]="whatsapp.enabled()" (ionChange)="whatsapp.setEnabled($event.detail.checked)">Avvisa su WhatsApp</ion-toggle>
+      <ion-input label="Numero WhatsApp" labelPlacement="stacked" type="tel" autocomplete="tel" placeholder="+39 333 1234567" [value]="whatsapp.phone()" (ionInput)="whatsapp.setPhone($event.detail.value ?? '')" />
+      <p class="settings-note">Inserisci il numero completo di prefisso internazionale. Numero e preferenza vengono salvati su questo dispositivo.</p>
+      @if ((whatsapp.phone() || whatsapp.enabled()) && !whatsapp.valid()) {
+        <p class="settings-error" role="status">Inserisci un numero valido con prefisso internazionale, ad esempio +39 333 1234567.</p>
+      }
+    </ion-card-content></ion-card>
+    }
+    @if (section() === 'notifiche') {
+    <ion-card class="settings-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><div><h2>Avvisi di lavoro e pausa</h2><p>Scegli quando ricevere un promemoria.</p></div></header>
+      <p>Gli avvisi seguono l’obiettivo e le pause accumulate nella giornata. Ogni avviso arriva al massimo una volta al giorno, quelli delle pause solo mentre sei in pausa.</p>
+      @if (notifications.supported) {
+        <ion-toggle class="notification-toggle" justify="space-between" #notificationToggle [checked]="notifications.enabled()" [disabled]="notificationPending()" (ionChange)="toggleNotifications(notificationToggle)">Notifiche di uscita</ion-toggle>
+        <ion-toggle class="notification-toggle" justify="space-between" #pauseToggle [checked]="notifications.pauseEnabled()" [disabled]="notificationPending()" (ionChange)="toggleNotifications(pauseToggle, 'pause')">Pausa minima completata</ion-toggle>
+        <ion-toggle class="notification-toggle" justify="space-between" #voucherToggle [checked]="notifications.voucherEnabled()" [disabled]="notificationPending()" (ionChange)="toggleNotifications(voucherToggle, 'voucher')">Pausa per buono pasto completata</ion-toggle>
+        <p class="settings-note">Per il buono pasto restano necessari i requisiti di lavoro della giornata. Se raggiungi insieme le due soglie di pausa, ricevi un solo avviso.</p>
+        <ion-button expand="block" fill="outline" shape="round" [disabled]="!notifications.anyEnabled() || notifications.testing()" (click)="notifications.test()">Prova notifica tra 15 secondi</ion-button>
+      } @else {
+        <p>Notifiche non disponibili in questo browser. Su iPhone apri Timbrì dopo averla aggiunta alla Home.</p>
+      }
+      <p class="settings-note">In background o a schermo bloccato l’avviso può arrivare in ritardo se il dispositivo sospende l’app. Ad app chiusa l’avviso non è garantito.</p>
+      @if (notifications.message()) { <p role="status">{{ notifications.message() }}</p> }
+    </ion-card-content></ion-card>
+    }
     @if (section() === 'offline') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><span class="settings-symbol"><ion-icon name="phone-portrait-outline" /></span><div><h2>Installazione e uso offline</h2><p>Timbrì sulla Home del tuo telefono.</p></div></header>
@@ -111,7 +142,7 @@ export class Impostazioni {
   private readonly params = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
   protected readonly section = computed(() => this.params().get('section'));
   protected readonly settings = inject(WorkSettingsService);
-  protected readonly title = computed(() => ({ orari: 'Orari di lavoro', pausa: 'Pausa obbligatoria', buono: 'Buono pasto', aspetto: 'Aspetto', dati: 'Gestione dati', offline: 'Installazione e offline' })[this.section() ?? ''] ?? 'Impostazioni');
+  protected readonly title = computed(() => ({ orari: 'Orari di lavoro', pausa: 'Pausa obbligatoria', buono: 'Buono pasto', aspetto: 'Aspetto', dati: 'Gestione dati', offline: 'Installazione e offline', notifiche: 'Notifiche', whatsapp: 'WhatsApp' })[this.section() ?? ''] ?? 'Impostazioni');
   protected readonly preferenceItems = computed(() => {
     const config = this.settings.value();
     return [
@@ -122,11 +153,16 @@ export class Impostazioni {
     ];
   });
   protected readonly appItems = [
+    { path: 'whatsapp', title: 'WhatsApp', icon: 'phone-portrait-outline', color: 'settings-teal', summary: 'Avvisa qualcuno quando chiudi la giornata' },
+    { path: 'notifiche', title: 'Notifiche', icon: 'time-outline', color: 'settings-orange', summary: 'Uscita, pause e notifica di prova' },
     { path: 'dati', title: 'Gestione dati', icon: 'folder-outline', color: 'settings-blue', summary: 'Giornata corrente, backup e storico' },
     { path: 'offline', title: 'Installazione e offline', icon: 'phone-portrait-outline', color: 'settings-gray', summary: 'Guida e protezione dell’archivio' },
   ];
   protected readonly version = version;
   protected readonly guide = inject(InstallGuideService);
+  protected readonly notifications = inject(ExitNotificationService);
+  protected readonly whatsapp = inject(WhatsappService);
+  protected readonly notificationPending = signal(false);
   protected readonly theme = inject(ThemeService);
   protected readonly store = inject(WorkdayService);
   protected readonly persistence = inject(StoragePersistenceService);
@@ -147,6 +183,16 @@ export class Impostazioni {
     addIcons({ colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline, timeOutline, cafeOutline, ticketOutline, folderOutline, chevronForwardOutline, chevronBackOutline });
     const timer = window.setInterval(() => this.now.set(new Date()), 1000);
     inject(DestroyRef).onDestroy(() => window.clearInterval(timer));
+  }
+
+  /** Allinea il toggle al permesso effettivo anche quando l’utente rifiuta la richiesta. */
+  protected async toggleNotifications(toggle: IonToggle, kind: NotificationKind = 'exit'): Promise<void> {
+    this.notificationPending.set(true);
+    try { await this.notifications.toggle(kind); }
+    finally {
+      toggle.checked = kind === 'exit' ? this.notifications.enabled() : kind === 'pause' ? this.notifications.pauseEnabled() : this.notifications.voucherEnabled();
+      this.notificationPending.set(false);
+    }
   }
 
   /** Scarica un CSV completo compatibile con il ripristino dell’archivio. */

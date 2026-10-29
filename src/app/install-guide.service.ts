@@ -9,6 +9,7 @@ interface InstallPrompt extends Event {
 @Injectable({ providedIn: 'root' })
 export class InstallGuideService {
   readonly open = signal(false);
+  readonly updateReady = signal(false);
   readonly prompt = signal<InstallPrompt | null>(null);
   readonly offline = signal('Preparazione offline in corso…');
   readonly iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -30,11 +31,15 @@ export class InstallGuideService {
       return;
     }
     this.updates.versionUpdates.subscribe(event => {
+      if (event.type === 'VERSION_READY') this.updateReady.set(true);
       if (event.type === 'VERSION_READY' || event.type === 'NO_NEW_VERSION_DETECTED') this.offline.set('Disponibile offline');
       if (event.type === 'VERSION_INSTALLATION_FAILED') this.offline.set('Preparazione non completata. Riapri Timbrì con una connessione.');
     });
     void this.updates.checkForUpdate().catch(() => this.offline.set('Impossibile verificare l’offline. Riprova con una connessione.'));
   }
+
+  /** Ricarica la pagina per usare la versione già scaricata. */
+  reload(): void { window.location.reload(); }
 
   /** Riapre la stessa guida dalle impostazioni. */
   show(): void { this.open.set(true); }
