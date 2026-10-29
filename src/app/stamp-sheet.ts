@@ -5,6 +5,7 @@ import { addIcons } from 'ionicons';
 import { closeOutline, logoWhatsapp } from 'ionicons/icons';
 import { dayKey } from './workday';
 import { WorkdayService } from './workday.service';
+import { ExitNotificationService } from './exit-notification.service';
 import { WhatsappService } from './whatsapp.service';
 
 @Component({
@@ -24,6 +25,9 @@ import { WhatsappService } from './whatsapp.service';
           <p class="entry-hint">{{ date() | date:'d MMMM yyyy':'':'it' }} · Conferma l’ora della timbratura o modificala.</p>
           <ion-datetime aria-label="Ora della timbratura" presentation="time" locale="it-IT" hourCycle="h23" [preferWheel]="true" [min]="minimum()" [max]="maximum()" [value]="draftTime()" (ionChange)="updateTime($event.detail.value)" />
           @if (store.error()) { <p role="alert">{{ store.error() }}</p> }
+          @if (working() && exitKind() === 'finish' && exitNotification.enabled()) {
+            <p class="entry-hint">Confermando l’uscita di oggi verrà inviato anche l’avviso push al destinatario.</p>
+          }
           <div [class.stamp-confirm-actions]="working() && exitKind() === 'finish' && whatsapp.enabled()">
             <ion-button expand="block" shape="round" class="personal-confirm" [class.confirm-pause]="working() && exitKind() === 'pause'" [class.confirm-finish]="working() && exitKind() === 'finish'" [disabled]="confirming() || store.saving() || (working() && !exitKind())" (click)="confirm(entrySheet)">Conferma</ion-button>
             @if (working() && exitKind() === 'finish' && whatsapp.enabled()) {
@@ -41,6 +45,7 @@ import { WhatsappService } from './whatsapp.service';
 export class StampSheet {
   protected readonly store = inject(WorkdayService);
   protected readonly whatsapp = inject(WhatsappService);
+  protected readonly exitNotification = inject(ExitNotificationService);
   protected readonly confirming = signal(false);
   protected readonly opened = signal(false);
   protected readonly date = signal(dayKey(new Date()));
@@ -90,7 +95,7 @@ export class StampSheet {
     this.exitKind.set(value === 'pause' || value === 'finish' ? value : undefined);
   }
 
-  /** Salva la timbratura e apre WhatsApp solo dopo la conferma riuscita della fine giornata. */
+  /** Salva la timbratura e invia gli avvisi solo dopo la conferma riuscita della fine giornata. */
   protected async confirm(sheet: IonModal, notify = false): Promise<void> {
     const kind = this.working() ? this.exitKind() : 'entry';
     if (!kind || this.store.saving() || this.confirming()) return;
@@ -100,6 +105,7 @@ export class StampSheet {
     this.confirming.set(true);
     try {
       if (!await this.store.stamp(kind, time, this.target(), this.date())) return;
+      if (kind === 'finish') await this.exitNotification.notify(time);
       await sheet.dismiss(undefined, 'confirm');
       if (url) this.whatsapp.open(url);
     } finally { this.confirming.set(false); }

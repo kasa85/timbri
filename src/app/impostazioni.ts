@@ -11,6 +11,8 @@ import { addIcons } from 'ionicons';
 import { colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline, timeOutline, cafeOutline, ticketOutline, folderOutline, chevronForwardOutline, chevronBackOutline } from 'ionicons/icons';
 import { InstallGuideService } from './install-guide.service';
 import { WhatsappService } from './whatsapp.service';
+import { NotificationSchedulerService } from './notification-scheduler.service';
+import { ExitNotificationService } from './exit-notification.service';
 import { PushTestService } from './push-test.service';
 import { ThemeService } from './theme.service';
 import { WorkdayService } from './workday.service';
@@ -22,7 +24,7 @@ import { dayKey, StampKind } from './workday';
   selector: 'app-impostazioni',
   imports: [RouterLink, WorkSettingsForm, DatePipe, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent, IonToggle, IonInput],
   template: `<ion-content><main class="page settings-page">
-    @if (section()) { <a class="settings-back" routerLink="/impostazioni"><ion-icon name="chevron-back-outline" aria-hidden="true" />Impostazioni</a> }
+    @if (section()) { <a class="settings-back" [routerLink]="notificationSection() ? '/impostazioni/notifiche' : '/impostazioni'"><ion-icon name="chevron-back-outline" aria-hidden="true" />{{ notificationSection() ? 'Notifiche' : 'Impostazioni' }}</a> }
     <h1>{{ title() }}</h1>
 
     @if (!section()) {
@@ -102,10 +104,48 @@ import { dayKey, StampKind } from './workday';
       }
     </ion-card-content></ion-card>
     }
-    @if (section() === 'notifiche') {
+    @if (section() === 'notifiche' && !notificationSection()) {
+      <nav class="settings-menu" aria-label="Notifiche">
+        @for (item of notificationItems; track item.path) {
+          <a class="settings-menu-row" [routerLink]="['/impostazioni/notifiche', item.path]">
+            <span [class]="'settings-menu-icon ' + item.color"><ion-icon [name]="item.icon" aria-hidden="true" /></span>
+            <span class="settings-menu-copy"><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></span>
+            <ion-icon class="settings-chevron" name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        }
+      </nav>
+    }
+    @if (section() === 'notifiche' && notificationSection() === 'ricevi') {
+    <ion-card class="settings-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><div><h2>Ricevi avvisi di uscita</h2><p>Configura il telefono che riceve le notifiche.</p></div></header>
+      <p>Non serve una chiave API. Abilita le notifiche e condividi il tuo codice con chi deve avvisarti. Su iPhone installa Timbrì sulla Home e aprila da lì.</p>
+      <ion-button expand="block" shape="round" [disabled]="!push.loaded() || push.busy() || push.subscribed()" (click)="push.enable()">{{ push.subscribed() ? 'Ricezione abilitata' : 'Abilita ricezione' }}</ion-button>
+      @if (push.subscribed()) {
+        <ion-input label="Il tuo codice destinatario" labelPlacement="stacked" [readonly]="true" [value]="push.subscriptionId()" />
+        <ion-button expand="block" fill="outline" shape="round" (click)="exitNotification.copyCode()">Copia codice destinatario</ion-button>
+        <p class="settings-note">Se reinstalli l’app o cancelli i dati, verifica il codice e condividilo di nuovo se cambia.</p>
+      }
+      <p role="status">{{ push.message() }}</p>
+    </ion-card-content></ion-card>
+    }
+    @if (section() === 'notifiche' && notificationSection() === 'invio') {
+    <ion-card class="settings-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><div><h2>Avvisa quando esco</h2><p>Configura il telefono da cui timbri.</p></div></header>
+      <p>Inserisci il codice condiviso dal destinatario e la tua chiave API in “Configurazione e prove”. Alla conferma della fine giornata di oggi invieremo automaticamente una push. Le pause e le giornate recuperate non inviano avvisi.</p>
+      <ion-input label="Codice destinatario" labelPlacement="stacked" autocomplete="off" autocapitalize="off" [spellcheck]="false" [value]="exitNotification.recipient()" (ionInput)="exitNotification.setRecipient($event.detail.value ?? '')" />
+      @if (exitNotification.recipient() && !exitNotification.valid()) { <p role="status">Il codice non è valido: copia il codice completo dal telefono del destinatario.</p> }
+      <ion-toggle justify="space-between" [checked]="exitNotification.enabled()" (ionChange)="exitNotification.setEnabled($event.detail.checked)">Invia avviso alla conferma dell’uscita</ion-toggle>
+      @if (exitNotification.enabled() && !push.apiKey()) { <p role="status">Inserisci la tua chiave API per inviare gli avvisi.</p> }
+      <ion-button expand="block" fill="outline" shape="round" [disabled]="!exitNotification.ready() || exitNotification.busy()" (click)="exitNotification.test()">Prova avviso al destinatario</ion-button>
+      <p role="status">{{ exitNotification.message() }}</p>
+      <p class="settings-note">L’invio richiede connessione. Se fallisce, la timbratura resta salvata; controlla il destinatario prima di avvisarlo in altro modo.</p>
+    </ion-card-content></ion-card>
+      <p class="settings-note"><a routerLink="/impostazioni/notifiche/configurazione">Apri configurazione e prove</a> per impostare la chiave API e verificare le push.</p>
+    }
+    @if (section() === 'notifiche' && notificationSection() === 'configurazione') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><div><h2>Prova push con OneSignal</h2><p>Verifica gli avvisi con l’app in background.</p></div></header>
-      <p>Inserisci la App API Key dell’app OneSignal di Timbrì. La chiave resta salvata su questo dispositivo e viene inviata a OneSignal solo quando premi Prova push.</p>
+      <p>Inserisci la App API Key dell’app OneSignal di Timbrì. La chiave resta salvata su questo dispositivo e viene usata per le prove e per sincronizzare gli avvisi automatici con OneSignal.</p>
       <ion-input label="App API Key" labelPlacement="stacked" type="password" autocomplete="off" autocapitalize="off" [spellcheck]="false" [value]="push.apiKey()" (ionInput)="push.setKey($event.detail.value ?? '')" />
       <ion-button expand="block" fill="clear" shape="round" [disabled]="!push.apiKey() || push.busy()" (click)="push.setKey('')">Rimuovi chiave dal dispositivo</ion-button>
       <ion-button expand="block" fill="outline" shape="round" [disabled]="!push.loaded() || push.busy() || push.subscribed()" (click)="push.enable()">{{ push.subscribed() ? 'Dispositivo registrato' : 'Abilita push su questo dispositivo' }}</ion-button>
@@ -113,13 +153,19 @@ import { dayKey, StampKind } from './workday';
       <p role="status">{{ push.message() }}</p>
       <p class="settings-note">Su iPhone apri Timbrì dalla Home. La prova richiede una connessione; la chiave salvata nel browser è accessibile al codice della PWA. Usa una chiave dedicata al tuo account personale.</p>
     </ion-card-content></ion-card>
+    }
+    @if (section() === 'notifiche' && notificationSection() === 'promemoria') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
-      <header class="settings-heading"><div><h2>Avvisi di lavoro e pausa</h2><p>Temporaneamente non disponibili.</p></div></header>
-      <p>Gli avvisi automatici restano disabilitati finché non abbiamo verificato la prova push con OneSignal.</p>
-      <ion-toggle class="settings-toggle" justify="space-between" [checked]="false" [disabled]="true">Notifiche di uscita</ion-toggle>
-      <ion-toggle class="settings-toggle" justify="space-between" [checked]="false" [disabled]="true">Pausa minima completata</ion-toggle>
-      <ion-toggle class="settings-toggle" justify="space-between" [checked]="false" [disabled]="true">Pausa per buono pasto completata</ion-toggle>
+      <header class="settings-heading"><div><h2>Avvisi di lavoro e pausa</h2><p>Notifiche programmate con OneSignal.</p></div></header>
+      <p>Gli avvisi seguono obiettivo e pause accumulate. Per il buono pasto restano necessari i requisiti di lavoro. Le soglie di pausa coincidenti producono un solo avviso.</p>
+      <ion-toggle class="settings-toggle" justify="space-between" [checked]="notificationScheduler.preferences().exit" [disabled]="!push.loaded() || !push.subscribed() || !push.apiKey()" (ionChange)="notificationScheduler.setEnabled('exit', $event.detail.checked)">Orario di uscita raggiunto</ion-toggle>
+      <ion-toggle class="settings-toggle" justify="space-between" [checked]="notificationScheduler.preferences().pause" [disabled]="!push.loaded() || !push.subscribed() || !push.apiKey()" (ionChange)="notificationScheduler.setEnabled('pause', $event.detail.checked)">Pausa minima completata</ion-toggle>
+      <ion-toggle class="settings-toggle" justify="space-between" [checked]="notificationScheduler.preferences().voucher" [disabled]="!push.loaded() || !push.subscribed() || !push.apiKey()" (ionChange)="notificationScheduler.setEnabled('voucher', $event.detail.checked)">Pausa per buono pasto completata</ion-toggle>
+      <p role="status">{{ notificationScheduler.status() }}</p>
+      <ion-button expand="block" fill="outline" shape="round" [disabled]="notificationScheduler.syncing()" (click)="notificationScheduler.synchronize()">{{ notificationScheduler.syncing() ? 'Sincronizzazione…' : 'Riprova sincronizzazione' }}</ion-button>
+      <p class="settings-note">Ogni modifica richiede connessione. Se la sincronizzazione fallisce, potrebbe arrivare un avviso con l’orario precedente. Ricevi al massimo un avviso per tipo al giorno.</p>
     </ion-card-content></ion-card>
+      <p class="settings-note"><a routerLink="/impostazioni/notifiche/configurazione">Apri configurazione e prove</a> per impostare la chiave API e verificare le push.</p>
     }
     @if (section() === 'offline') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
@@ -151,8 +197,15 @@ export class Impostazioni {
   private readonly route = inject(ActivatedRoute);
   private readonly params = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
   protected readonly section = computed(() => this.params().get('section'));
+  protected readonly notificationSection = computed(() => this.section() === 'notifiche' ? this.params().get('notificationSection') : null);
+  protected readonly notificationItems = [
+    { path: 'promemoria', title: 'Promemoria personali', icon: 'time-outline', color: 'settings-orange', summary: 'Uscita prevista, pausa e buono pasto sul tuo telefono' },
+    { path: 'invio', title: 'Avvisa quando esco', icon: 'phone-portrait-outline', color: 'settings-teal', summary: 'Destinatario e prova dell’avviso di fine giornata' },
+    { path: 'ricevi', title: 'Ricevi avvisi', icon: 'download-outline', color: 'settings-blue', summary: 'Abilita la ricezione e condividi il tuo codice' },
+    { path: 'configurazione', title: 'Configurazione e prove', icon: 'folder-outline', color: 'settings-gray', summary: 'Chiave API e test delle notifiche OneSignal' },
+  ];
   protected readonly settings = inject(WorkSettingsService);
-  protected readonly title = computed(() => ({ orari: 'Orari di lavoro', pausa: 'Pausa obbligatoria', buono: 'Buono pasto', aspetto: 'Aspetto', dati: 'Gestione dati', offline: 'Installazione e offline', notifiche: 'Notifiche', whatsapp: 'WhatsApp' })[this.section() ?? ''] ?? 'Impostazioni');
+  protected readonly title = computed(() => this.notificationItems.find(item => item.path === this.notificationSection())?.title ?? ({ orari: 'Orari di lavoro', pausa: 'Pausa obbligatoria', buono: 'Buono pasto', aspetto: 'Aspetto', dati: 'Gestione dati', offline: 'Installazione e offline', notifiche: 'Notifiche', whatsapp: 'WhatsApp' })[this.section() ?? ''] ?? 'Impostazioni');
   protected readonly preferenceItems = computed(() => {
     const config = this.settings.value();
     return [
@@ -163,7 +216,7 @@ export class Impostazioni {
     ];
   });
   protected readonly appItems = [
-    { path: 'notifiche', title: 'Notifiche', icon: 'time-outline', color: 'settings-orange', summary: 'Temporaneamente disabilitate' },
+    { path: 'notifiche', title: 'Notifiche', icon: 'time-outline', color: 'settings-orange', summary: 'Promemoria personali, invio e ricezione avvisi' },
     { path: 'whatsapp', title: 'WhatsApp', icon: 'phone-portrait-outline', color: 'settings-teal', summary: 'Avvisa qualcuno quando chiudi la giornata' },
     { path: 'dati', title: 'Gestione dati', icon: 'folder-outline', color: 'settings-blue', summary: 'Giornata corrente, backup e storico' },
     { path: 'offline', title: 'Installazione e offline', icon: 'phone-portrait-outline', color: 'settings-gray', summary: 'Guida e protezione dell’archivio' },
@@ -172,6 +225,8 @@ export class Impostazioni {
   protected readonly guide = inject(InstallGuideService);
   protected readonly whatsapp = inject(WhatsappService);
   protected readonly push = inject(PushTestService);
+  protected readonly exitNotification = inject(ExitNotificationService);
+  protected readonly notificationScheduler = inject(NotificationSchedulerService);
   protected readonly theme = inject(ThemeService);
   protected readonly store = inject(WorkdayService);
   protected readonly persistence = inject(StoragePersistenceService);

@@ -18,6 +18,7 @@ export class PushTestService {
   readonly loaded = signal(false);
   readonly busy = signal(false);
   readonly subscribed = signal(false);
+  readonly subscriptionId = signal('');
   readonly message = signal('Caricamento di OneSignal…');
   private sdk?: OneSignalSdk;
 
@@ -68,7 +69,7 @@ export class PushTestService {
       this.sdk.User.PushSubscription.addEventListener('change', () => this.syncSubscription());
       this.syncSubscription();
       this.loaded.set(true);
-      this.message.set('OneSignal pronto. Abilita le push su questo dispositivo per eseguire la prova.');
+      this.message.set('OneSignal pronto. Puoi abilitare la ricezione su questo dispositivo.');
     } catch {
       this.message.set('OneSignal non disponibile. Verifica connessione e configurazione, poi riapri la pagina. Su iPhone usa l’app dalla Home.');
     }
@@ -78,6 +79,32 @@ export class PushTestService {
   private syncSubscription(): void {
     const subscription = this.sdk?.User.PushSubscription;
     this.subscribed.set(!!subscription?.id && !!subscription.optedIn);
+    this.subscriptionId.set(subscription?.id ?? '');
+  }
+
+  /** Programma un avviso personale; la chiave idempotente consente di recuperare risposte perse. */
+  async schedule(title: string, body: string, at: number, requestId: string, subscriptionId: string): Promise<string> {
+    const response = await fetch('https://api.onesignal.com/notifications?c=push', {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Key ${this.apiKey()}` },
+      signal: AbortSignal.timeout(15000),
+      body: JSON.stringify({ app_id: this.appId, include_subscription_ids: [subscriptionId], target_channel: 'push',
+        headings: { en: title, it: title }, contents: { en: body, it: body }, send_after: new Date(at).toISOString(),
+        ttl: 60, web_url: new URL('#/home', document.baseURI).href, idempotency_key: requestId }),
+    });
+    if (!response.ok) throw new Error('Programmazione rifiutata');
+    const result = await response.json() as { id?: string; errors?: unknown };
+    if (!result.id || result.errors) throw new Error('Programmazione non confermata');
+    return result.id;
+  }
+
+  /** Cancella un avviso precedentemente programmato senza coinvolgere altri dispositivi. */
+  async cancel(id: string): Promise<void> {
+    const response = await fetch(`https://api.onesignal.com/notifications/${encodeURIComponent(id)}?app_id=${this.appId}`, {
+      method: 'DELETE', keepalive: true, headers: { Authorization: `Key ${this.apiKey()}` }, signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error('Cancellazione non confermata');
   }
 
   /** Richiede il permesso al tocco e abilita solo la ricezione, senza inviare messaggi. */
@@ -92,7 +119,7 @@ export class PushTestService {
       }
       await this.sdk.User.PushSubscription.optIn();
       this.syncSubscription();
-      this.message.set(this.subscribed() ? 'Dispositivo registrato. Puoi provare la push.' : 'Registrazione in corso. Attendi che il pulsante di prova si abiliti.');
+      this.message.set(this.subscribed() ? 'Dispositivo registrato per ricevere notifiche.' : 'Registrazione in corso. Attendi la conferma della ricezione.');
     } catch { this.message.set('Registrazione non riuscita. Controlla il permesso e riprova.'); }
     finally { this.busy.set(false); }
   }

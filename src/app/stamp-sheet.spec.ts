@@ -1,10 +1,17 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { StampSheet } from './stamp-sheet';
 import { WorkdayService } from './workday.service';
+import { ExitNotificationService } from './exit-notification.service';
 import { WhatsappService } from './whatsapp.service';
 import { appendStamp, dayKey, Workday } from './workday';
+
+const notifyExit = vi.fn(async (_time: number) => {});
+beforeEach(() => {
+  notifyExit.mockClear();
+  TestBed.configureTestingModule({ providers: [{ provide: ExitNotificationService, useValue: { enabled: signal(false), notify: notifyExit } }] });
+});
 
 afterEach(() => { TestBed.resetTestingModule(); localStorage.clear(); });
 
@@ -94,11 +101,13 @@ it('apre WhatsApp solo dopo il salvataggio riuscito e impedisce conferme duplica
   await first;
   expect(open).not.toHaveBeenCalled();
   expect(modal.dismiss).not.toHaveBeenCalled();
+  expect(notifyExit).not.toHaveBeenCalled();
   const second = sheet['confirm'](modal as never, true);
   finish(true);
   await second;
   expect(modal.dismiss).toHaveBeenCalledOnce();
   expect(open).toHaveBeenCalledOnce();
+  expect(notifyExit).toHaveBeenCalledExactlyOnceWith(new Date(`${date}T17:35`).getTime());
   expect(new URL(open.mock.calls[0][0]).searchParams.get('text')).toContain('17:35');
 });
 
