@@ -110,21 +110,22 @@ h2 { font-size: 18px; font-weight: 650; letter-spacing: -.4px; margin: 0 0 12px;
 .settings-group ion-list { background: transparent; margin-bottom: 12px; }
 .settings-group ion-item { --padding-start: 6px; --inner-padding-end: 6px; }
 .version { text-align: center; color: var(--muted); font-size: 13px; margin-top: 30px; }
-.home-page { padding-top: calc(18px + env(safe-area-inset-top)); padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
-.home-header { position: relative; display: flex; align-items: center; justify-content: center; min-height: 86px; }
+/* Dà respiro al logo recuperando spazio sopra la pagina e sotto il cerchio. */
+.home-page { padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+.home-header { position: relative; display: flex; align-items: center; justify-content: center; min-height: 86px; margin-bottom: 12px; }
 /* Compensa i margini trasparenti asimmetrici del PNG per centrare il disegno. */
 .home-logo { width: min(65%, 255px); height: auto; object-fit: contain; transform: translateX(-4%); }
 .home-logo-dark { display: none; }
 :root.ion-palette-dark .home-logo-light { display: none; }
 :root.ion-palette-dark .home-logo-dark { display: block; }
-.today-date { text-align: center; color: var(--muted); font-weight: 550; font-size: 15px; margin: 8px 0 24px; text-transform: capitalize; }
 :root .home-page ion-segment.ios,
 :root .entry-sheet .exit-segment.ios { --background: var(--surface); --border-radius: 999px; padding: 4px; border: 1px solid var(--surface-border); border-radius: var(--border-radius); }
 .home-page ion-segment-button,
 .entry-sheet .exit-segment ion-segment-button { --color: var(--ion-text-color); --color-checked: #fff; --indicator-color: #185bfa; min-height: 40px; font-weight: 600; font-size: 14px; }
-.daily-progress { display: grid; place-items: center; padding: 24px 0; }
+.daily-progress { display: grid; place-items: center; padding: 24px 0 18px; }
 .progress-ring { width: min(61vw, 225px); aspect-ratio: 1; border: 13px solid transparent; position: relative; isolation: isolate; border-radius: 50%; box-shadow: inset 0 2px 10px rgb(255 255 255 / 22%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: var(--shape); }
-.progress-ring ion-icon { font-size: 31px; color: var(--muted); margin-bottom: 2px; }
+/* Riunisce giorno e data sopra l’ora senza occupare spazio sotto il logo. */
+.progress-ring .clock-date { margin: 0; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.35; font-weight: 550; text-transform: capitalize; }
 .progress-ring strong { font-size: clamp(32px, 9vw, 45px); letter-spacing: -1px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .progress-ring span { font-size: 17px; color: var(--muted); }
 .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 18px; }
@@ -154,8 +155,11 @@ h2 { font-size: 18px; font-weight: 650; letter-spacing: -.4px; margin: 0 0 12px;
 .ring-track-edge { fill: none; stroke: var(--ring-edge); stroke-width: .7px; }
 .ring-arc-edge { fill: none; stroke: var(--ring-edge); stroke-width: 17.5px; stroke-linecap: round; }
 .ring-arc { fill: none; stroke-width: 16px; stroke-linecap: round; filter: drop-shadow(0 2px 2px rgb(35 100 161 / 18%)); }
-.progress-ring ion-icon { color: var(--state-color); }
-.progress-ring .clock-status { color: var(--state-color); font-size: 16px; font-weight: 600; }
+/* La pillola di stato riprende gli stessi gradienti delle icone di riepilogo. */
+.progress-ring .clock-status { color: #fff; background: linear-gradient(135deg, var(--neutral-icon-start), var(--neutral-icon-end)); border-radius: 999px; padding: 4px 12px; font-size: 13px; line-height: 1.2; font-weight: 650; white-space: nowrap; }
+.progress-ring.state-working .clock-status,
+.progress-ring.state-finished .clock-status { background: linear-gradient(135deg, var(--ring-work-start), var(--ring-work-end)); }
+.progress-ring.state-paused .clock-status { background: linear-gradient(135deg, var(--ring-pause-start), var(--ring-pause-end)); }
 .stamp-button { min-height: 52px; margin: 0; font-weight: 650; font-size: 16px; --box-shadow: none; }
 ion-tab-bar { --color: var(--muted); --color-selected: var(--ion-color-primary); width: calc(100% - 32px); max-width: 520px; margin-inline: auto; left: 0; right: 0; }
 ion-tab-button { min-height: 54px; }
@@ -183,11 +187,10 @@ ion-tab-button { min-height: 54px; }
 }
 :root .home-page ion-segment-button.ios { min-height: 40px; }
 @media (max-height: 740px) {
-  .home-page { padding-top: calc(10px + env(safe-area-inset-top)); }
+  .home-page { padding-top: calc(4px + env(safe-area-inset-top)); }
   .home-header { min-height: 68px; }
   .home-logo { max-width: 205px; }
-  .today-date { margin-bottom: 16px; }
-  .daily-progress { padding: 18px 0; }
+  .daily-progress { padding: 18px 0 12px; }
   .progress-ring { width: min(58vw, 210px); }
 }
 
@@ -208,18 +211,40 @@ ion-modal.personal-sheet {
 .personal-hint { text-align: center; font-size: 13px; color: var(--muted); margin: 8px 0 22px; }
 .personal-confirm { min-height: 48px; --box-shadow: none; font-weight: 650; }
 
-ion-modal.entry-sheet { --height: min(calc(440px + env(safe-area-inset-bottom)), 95dvh); }
+/* Include selettore, orario e conferma anche quando l’aiuto occupa due righe. */
+ion-modal.entry-sheet { --height: min(calc(480px + env(safe-area-inset-bottom)), 95dvh); }
 .entry-hint { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 14px 0 4px; }
 .entry-sheet ion-datetime { --background: transparent; width: 100%; max-width: none; margin: 0 auto 10px; }
 .entry-sheet ion-datetime::part(wheel-item) { font-size: 28px; font-weight: 650; text-align: center; font-variant-numeric: proportional-nums; }
 .entry-sheet ion-datetime::part(wheel-item active) { font-size: 28px; font-weight: 650; }
 
 .entry-sheet .exit-segment { margin-top: 8px; }
-.entry-sheet .exit-segment ion-segment-button { --color: var(--ion-text-color); --color-checked: #fff; --indicator-color: var(--status-pause); }
+.entry-sheet .exit-segment ion-segment-button { --indicator-color: var(--status-pause); }
 .entry-sheet .exit-segment.finish-selected ion-segment-button { --indicator-color: var(--status-remaining); }
 .state-finished { --state-color: var(--status-work); }
 
 /* Le impostazioni condividono superfici e controlli arrotondati della home. */
+.settings-section-label { margin: 24px 16px 8px; color: var(--muted); font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .5px; }
+.settings-menu { overflow: hidden; border: 1px solid var(--surface-border); border-radius: 24px; background: var(--surface); }
+.settings-menu-row { position: relative; display: flex; align-items: center; gap: 13px; min-height: 80px; padding: 14px 16px; color: var(--ion-text-color); text-decoration: none; }
+.settings-menu-row + .settings-menu-row::before { content: ''; position: absolute; inset: 0 0 auto 65px; border-top: 1px solid var(--surface-border); }
+.settings-menu-row:active { background: var(--shape); }
+.settings-menu-row:focus-visible { outline: 2px solid var(--ion-color-primary); outline-offset: -3px; }
+.settings-menu-icon { flex: 0 0 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; color: #fff; font-size: 22px; }
+.settings-blue { background: linear-gradient(135deg, #3986ff, #185bfa); }
+.settings-purple { background: linear-gradient(135deg, var(--ring-pause-start), var(--ring-pause-end)); }
+.settings-teal { background: linear-gradient(135deg, var(--ring-work-start), var(--ring-work-end)); }
+.settings-orange { background: linear-gradient(135deg, #ffb34b, #f47b35); }
+.settings-gray { background: linear-gradient(135deg, var(--neutral-icon-start), var(--neutral-icon-end)); }
+.settings-menu-copy { flex: 1; min-width: 0; }
+.settings-menu-copy strong { display: block; font-size: 16px; font-weight: 650; }
+.settings-menu-copy > span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.settings-chevron { flex-shrink: 0; font-size: 17px; color: var(--muted); opacity: .7; }
+.settings-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ion-color-primary); font-size: 16px; text-decoration: none; margin: 0 0 18px -5px; min-height: 32px; }
+.settings-fields { display: grid; gap: 20px; }
+.settings-fields ion-toggle { width: 100%; }
+.settings-fields ion-input, .settings-fields ion-select { --padding-start: 0; --padding-end: 0; font-size: 16px; }
+.settings-footnote { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 16px 10px; }
 .settings-page h1, .register-page > h1 { margin-bottom: 24px; }
 :root .page.settings-page ion-card.settings-card + ion-card.settings-card { margin-top: 20px; }
 .settings-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }

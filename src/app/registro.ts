@@ -37,7 +37,7 @@ import { registerDuration, registerRows, RegisterView } from './registro-data';
                 <td>
                   @if (view() !== 'day') { <span class="voucher-total">{{ row.vouchers }}</span> }
                   @else {
-                    <ion-icon class="voucher-icon" [class.voucher-earned]="row.vouchers > 0" [class.voucher-missed]="!row.provisional && !row.vouchers && row.work > 360" [name]="row.provisional || row.work <= 360 ? 'remove-circle-outline' : row.vouchers ? 'checkmark-circle' : 'close-circle'" [attr.aria-label]="row.provisional ? 'Buono pasto provvisorio' : row.vouchers ? 'Buono pasto maturato' : 'Buono pasto non maturato'" role="img" />
+                    <ion-icon class="voucher-icon" [class.voucher-earned]="row.vouchers > 0" [class.voucher-missed]="!row.provisional && !row.vouchers && row.voucherEligible" [name]="row.provisional ? 'remove-circle-outline' : row.vouchers ? 'checkmark-circle' : row.voucherEligible ? 'close-circle' : 'remove-circle-outline'" [attr.aria-label]="row.provisional ? 'Buono pasto provvisorio' : row.vouchers ? 'Buono pasto maturato' : row.voucherEligible ? 'Buono pasto non maturato' : 'Buono pasto non previsto'" role="img" />
                   }
                 </td>
                 <td class="balance-value" [class.balance-positive]="row.balance > 0" [class.balance-negative]="row.balance < 0">{{ row.incomplete ? '—' : duration(row.balance, true) }}</td>

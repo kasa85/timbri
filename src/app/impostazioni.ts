@@ -1,9 +1,14 @@
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { WorkSettingsForm } from './work-settings-form';
+import { WorkSettingsService } from './work-settings.service';
+import { registerDuration } from './registro-data';
 import { DatePipe } from '@angular/common';
 import { version } from '../../package.json';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { AlertController, ToastController, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline } from 'ionicons/icons';
+import { colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline, timeOutline, cafeOutline, ticketOutline, folderOutline, chevronForwardOutline, chevronBackOutline } from 'ionicons/icons';
 import { InstallGuideService } from './install-guide.service';
 import { ThemeService } from './theme.service';
 import { WorkdayService } from './workday.service';
@@ -13,8 +18,37 @@ import { dayKey, StampKind } from './workday';
 
 @Component({
   selector: 'app-impostazioni',
-  imports: [DatePipe, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent],
-  template: `<ion-content><main class="page settings-page"><h1>Impostazioni</h1>
+  imports: [RouterLink, WorkSettingsForm, DatePipe, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent],
+  template: `<ion-content><main class="page settings-page">
+    @if (section()) { <a class="settings-back" routerLink="/impostazioni"><ion-icon name="chevron-back-outline" aria-hidden="true" />Impostazioni</a> }
+    <h1>{{ title() }}</h1>
+
+    @if (!section()) {
+      <p class="settings-section-label">Preferenze</p>
+      <nav class="settings-menu" aria-label="Preferenze">
+        @for (item of preferenceItems(); track item.path) {
+          <a class="settings-menu-row" [routerLink]="['/impostazioni', item.path]">
+            <span [class]="'settings-menu-icon ' + item.color"><ion-icon [name]="item.icon" aria-hidden="true" /></span>
+            <span class="settings-menu-copy"><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></span>
+            <ion-icon class="settings-chevron" name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        }
+      </nav>
+      <p class="settings-section-label">App e dati</p>
+      <nav class="settings-menu" aria-label="App e dati">
+        @for (item of appItems; track item.path) {
+          <a class="settings-menu-row" [routerLink]="['/impostazioni', item.path]">
+            <span [class]="'settings-menu-icon ' + item.color"><ion-icon [name]="item.icon" aria-hidden="true" /></span>
+            <span class="settings-menu-copy"><strong>{{ item.title }}</strong><span>{{ item.summary }}</span></span>
+            <ion-icon class="settings-chevron" name="chevron-forward-outline" aria-hidden="true" />
+          </a>
+        }
+      </nav>
+    }
+    @if (section() === 'orari' || section() === 'pausa' || section() === 'buono') {
+      <app-work-settings-form [section]="section()!" />
+    }
+    @if (section() === 'aspetto') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><span class="settings-symbol"><ion-icon name="color-palette-outline" /></span><div><h2>Aspetto</h2><p>Scegli come vedere Timbrì.</p></div></header>
       <ion-segment class="appearance-segment" aria-label="Tema dell’app" [value]="theme.appearance()" (ionChange)="selectAppearance($event.detail.value)">
@@ -24,6 +58,8 @@ import { dayKey, StampKind } from './workday';
       </ion-segment>
       <p class="settings-note">Con Sistema, Timbrì segue l’aspetto del telefono.</p>
     </ion-card-content></ion-card>
+    }
+    @if (section() === 'dati') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><span class="settings-symbol"><ion-icon name="today-outline" /></span><div><h2>Giornata corrente</h2><p>{{ now() | date:'d MMMM yyyy':'':'it' }}</p></div></header>
       <div class="settings-day-summary">
@@ -44,6 +80,15 @@ import { dayKey, StampKind } from './workday';
       <ion-button class="day-action" expand="block" fill="outline" shape="round" [disabled]="!store.ready() || store.saving() || busy()" (click)="csvFile.click()"><ion-icon slot="start" name="cloud-upload-outline" />Importa CSV</ion-button>
       @if (transferError()) { <p class="settings-error" role="alert">{{ transferError() }}</p> }
     </ion-card-content></ion-card>
+    <ion-card class="settings-card danger-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><span class="settings-symbol"><ion-icon name="warning-outline" /></span><div><h2>Zona pericolosa</h2><p>Cancellazione definitiva dello storico</p></div></header>
+      <div class="archive-warning"><strong>Attenzione: perderai tutte le giornate.</strong><p>Verranno eliminate tutte le timbrature, anche quelle di oggi, gli obiettivi salvati e i buoni pasto. Questa operazione non può essere annullata.</p></div>
+      <p class="settings-note">Esporta prima un backup CSV per poter recuperare i dati. Il tema scelto resta invariato.</p>
+      <ion-button class="day-action" color="danger" expand="block" shape="round" [disabled]="!store.ready() || store.saving() || busy() || !store.days().length" (click)="confirmResetArchive()"><ion-icon slot="start" name="trash-outline" />Elimina tutto lo storico</ion-button>
+      @if (store.error()) { <p class="settings-error" role="alert">{{ store.error() }}</p> }
+    </ion-card-content></ion-card>
+    }
+    @if (section() === 'offline') {
     <ion-card class="settings-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><span class="settings-symbol"><ion-icon name="phone-portrait-outline" /></span><div><h2>Installazione e uso offline</h2><p>Timbrì sulla Home del tuo telefono.</p></div></header>
       <p role="status">{{ guide.offline() }}</p>
@@ -57,17 +102,29 @@ import { dayKey, StampKind } from './workday';
       }
       <p class="settings-note">La protezione non impedisce la cancellazione manuale dei dati e non recupera lo storico se perdi il telefono. Esporta periodicamente un backup CSV.</p>
     </ion-card-content></ion-card>
-    <ion-card class="settings-card danger-card"><ion-card-content class="settings-group">
-      <header class="settings-heading"><span class="settings-symbol"><ion-icon name="warning-outline" /></span><div><h2>Zona pericolosa</h2><p>Cancellazione definitiva dello storico</p></div></header>
-      <div class="archive-warning"><strong>Attenzione: perderai tutte le giornate.</strong><p>Verranno eliminate tutte le timbrature, anche quelle di oggi, gli obiettivi salvati e i buoni pasto. Questa operazione non può essere annullata.</p></div>
-      <p class="settings-note">Esporta prima un backup CSV per poter recuperare i dati. Il tema scelto resta invariato.</p>
-      <ion-button class="day-action" color="danger" expand="block" shape="round" [disabled]="!store.ready() || store.saving() || busy() || !store.days().length" (click)="confirmResetArchive()"><ion-icon slot="start" name="trash-outline" />Elimina tutto lo storico</ion-button>
-      @if (store.error()) { <p class="settings-error" role="alert">{{ store.error() }}</p> }
-    </ion-card-content></ion-card>
+    }
     <p class="version">Timbrì · {{ version }}</p>
   </main></ion-content>`,
 })
 export class Impostazioni {
+  private readonly route = inject(ActivatedRoute);
+  private readonly params = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
+  protected readonly section = computed(() => this.params().get('section'));
+  protected readonly settings = inject(WorkSettingsService);
+  protected readonly title = computed(() => ({ orari: 'Orari di lavoro', pausa: 'Pausa obbligatoria', buono: 'Buono pasto', aspetto: 'Aspetto', dati: 'Gestione dati', offline: 'Installazione e offline' })[this.section() ?? ''] ?? 'Impostazioni');
+  protected readonly preferenceItems = computed(() => {
+    const config = this.settings.value();
+    return [
+      { path: 'orari', title: 'Orari di lavoro', icon: 'time-outline', color: 'settings-blue', summary: `${registerDuration(config.firstTarget)} e ${registerDuration(config.secondTarget)} · Predefinito ${registerDuration(config.defaultSchedule === 'first' ? config.firstTarget : config.secondTarget)}` },
+      { path: 'pausa', title: 'Pausa obbligatoria', icon: 'cafe-outline', color: 'settings-purple', summary: config.pauseEnabled ? `${config.pauseMinutes} min per giornate oltre ${registerDuration(config.pauseAbove)}` : 'Disattivata' },
+      { path: 'buono', title: 'Buono pasto', icon: 'ticket-outline', color: 'settings-teal', summary: config.voucherEnabled ? `Oltre ${registerDuration(config.voucherAbove)} nette · Pausa ${config.voucherPause} min` : 'Disattivato' },
+      { path: 'aspetto', title: 'Aspetto', icon: 'color-palette-outline', color: 'settings-orange', summary: { system: 'Segue il sistema', light: 'Chiaro', dark: 'Scuro' }[this.theme.appearance()] },
+    ];
+  });
+  protected readonly appItems = [
+    { path: 'dati', title: 'Gestione dati', icon: 'folder-outline', color: 'settings-blue', summary: 'Giornata corrente, backup e storico' },
+    { path: 'offline', title: 'Installazione e offline', icon: 'phone-portrait-outline', color: 'settings-gray', summary: 'Guida e protezione dell’archivio' },
+  ];
   protected readonly version = version;
   protected readonly guide = inject(InstallGuideService);
   protected readonly theme = inject(ThemeService);
@@ -87,7 +144,7 @@ export class Impostazioni {
 
   /** Registra le icone e aggiorna la data anche se la pagina resta aperta a mezzanotte. */
   constructor() {
-    addIcons({ colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline });
+    addIcons({ colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, todayOutline, arrowUndoOutline, trashOutline, warningOutline, downloadOutline, cloudUploadOutline, timeOutline, cafeOutline, ticketOutline, folderOutline, chevronForwardOutline, chevronBackOutline });
     const timer = window.setInterval(() => this.now.set(new Date()), 1000);
     inject(DestroyRef).onDestroy(() => window.clearInterval(timer));
   }

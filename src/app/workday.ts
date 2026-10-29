@@ -1,6 +1,8 @@
+import { DayRules, DEFAULT_RULES } from './work-settings';
+
 export type StampKind = 'entry' | 'pause' | 'finish';
 export interface Stamp { kind: StampKind; time: number; }
-export interface Workday { date: string; target: number; stamps: Stamp[]; mealVoucher?: boolean; }
+export interface Workday { date: string; target: number; stamps: Stamp[]; mealVoucher?: boolean; rules?: DayRules; }
 
 /** Identifica la giornata secondo il calendario locale del telefono. */
 export function dayKey(date: Date): string {
@@ -20,7 +22,8 @@ export function calculateDay(day: Workday | undefined, now: number) {
   const last = stamps.at(-1);
   const state = !last ? 'idle' : last.kind === 'entry' ? 'working' : last.kind === 'pause' ? 'paused' : 'finished';
   const remaining = Math.max(0, (day?.target ?? 0) - work);
-  const missingPause = day && day.target > 360 ? Math.max(0, 10 - pause) : 0;
+  const rules = day?.rules ?? DEFAULT_RULES;
+  const missingPause = day && rules.pauseEnabled && day.target > rules.pauseAbove ? Math.max(0, rules.pauseMinutes - pause) : 0;
   return { work, pause, remaining, state, exit: !last || state === 'finished' ? null : now + (remaining + missingPause) * 60000 };
 }
 
@@ -53,8 +56,9 @@ export function timelineSegments(day: Workday | undefined, now: number) {
   }).filter(segment => segment.end > segment.start);
 }
 
-/** Assegna un buono con più di sei ore nette e almeno trenta minuti totali di pausa. */
+/** Applica i requisiti della giornata, mantenendo quelli originali per lo storico. */
 export function earnsMealVoucher(day: Workday): boolean {
   const totals = calculateDay(day, day.stamps.at(-1)?.time ?? 0);
-  return totals.state === 'finished' && totals.work > 360 && totals.pause >= 30;
+  const rules = day.rules ?? DEFAULT_RULES;
+  return totals.state === 'finished' && rules.voucherEnabled && totals.work > rules.voucherAbove && totals.pause >= rules.voucherPause;
 }

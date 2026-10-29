@@ -15,7 +15,7 @@ import { WorkdayService } from './workday.service';
         <section class="personal-panel">
           <header class="personal-heading"><h2 id="entry-title">{{ working() ? 'Timbra uscita' : 'Timbra entrata' }}</h2><ion-button fill="clear" shape="round" aria-label="Chiudi senza timbrare" (click)="entrySheet.dismiss()"><ion-icon slot="icon-only" name="close-outline" /></ion-button></header>
           @if (working()) {
-            <ion-segment class="exit-segment" [class.finish-selected]="exitKind() === 'finish'" [value]="exitKind()" (ionChange)="exitKind.set($event.detail.value === 'pause' ? 'pause' : 'finish')">
+            <ion-segment class="exit-segment" aria-label="Tipo di uscita" [disabled]="store.saving()" [class.finish-selected]="exitKind() === 'finish'" [value]="exitKind()" (ionChange)="selectExitKind($event.detail.value)">
               <ion-segment-button value="pause"><ion-label>Pausa</ion-label></ion-segment-button>
               <ion-segment-button value="finish"><ion-label>Fine giornata</ion-label></ion-segment-button>
             </ion-segment>
@@ -23,7 +23,7 @@ import { WorkdayService } from './workday.service';
           <p class="entry-hint">{{ date() | date:'d MMMM yyyy':'':'it' }} · Conferma l’ora della timbratura o modificala.</p>
           <ion-datetime aria-label="Ora della timbratura" presentation="time" locale="it-IT" hourCycle="h23" [preferWheel]="true" [min]="minimum()" [max]="maximum()" [value]="draftTime()" (ionChange)="updateTime($event.detail.value)" />
           @if (store.error()) { <p role="alert">{{ store.error() }}</p> }
-          <ion-button expand="block" shape="round" class="personal-confirm" [disabled]="store.saving()" (click)="confirm(entrySheet)">Conferma</ion-button>
+          <ion-button expand="block" shape="round" class="personal-confirm" [disabled]="store.saving() || (working() && !exitKind())" (click)="confirm(entrySheet)">Conferma</ion-button>
         </section>
       </ion-content>
     </ng-template>
@@ -36,7 +36,7 @@ export class StampSheet {
   protected readonly target = signal(540);
   protected readonly now = signal(new Date());
   protected readonly draftTime = signal('');
-  protected readonly exitKind = signal<'pause' | 'finish'>('pause');
+  protected readonly exitKind = signal<'pause' | 'finish' | undefined>(undefined);
   private readonly day = computed(() => this.store.days().find(day => day.date === this.date()));
   protected readonly working = computed(() => this.day()?.stamps.at(-1)?.kind === 'entry');
   protected readonly minimum = computed(() => {
@@ -58,7 +58,7 @@ export class StampSheet {
     this.now.set(new Date());
     this.date.set(date);
     this.target.set(target);
-    this.exitKind.set('pause');
+    this.exitKind.set(undefined);
     this.store.error.set('');
     this.draftTime.set(date === dayKey(this.now()) ? this.maximum() : this.minimum());
     this.opened.set(true);
@@ -74,9 +74,15 @@ export class StampSheet {
     if (typeof value === 'string') this.draftTime.set(`${this.date()}T${value.slice(11, 16)}`);
   }
 
-  /** Salva una timbratura e chiude solo dopo il commit, lasciando gli errori nel pannello. */
+  /** Accetta soltanto una scelta esplicita tra pausa e fine giornata. */
+  protected selectExitKind(value: string | number | undefined): void {
+    this.exitKind.set(value === 'pause' || value === 'finish' ? value : undefined);
+  }
+
+  /** Salva la timbratura solo dopo la scelta del tipo di uscita. */
   protected async confirm(sheet: IonModal): Promise<void> {
     const kind = this.working() ? this.exitKind() : 'entry';
+    if (!kind || this.store.saving()) return;
     if (await this.store.stamp(kind, new Date(this.draftTime()).getTime(), this.target(), this.date())) {
       await sheet.dismiss(undefined, 'confirm');
     }

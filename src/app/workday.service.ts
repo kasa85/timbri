@@ -1,8 +1,11 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { WorkSettingsService } from './work-settings.service';
+import { dayRules } from './work-settings';
 import { appendStamp, dayKey, StampKind, Workday } from './workday';
 
 @Injectable({ providedIn: 'root' })
 export class WorkdayService {
+  private readonly settings = inject(WorkSettingsService);
   readonly days = signal<Workday[]>([]);
   readonly ready = signal(false);
   readonly saving = signal(false);
@@ -130,7 +133,7 @@ export class WorkdayService {
     try {
       const expected = this.days().find(day => day.date === date);
       if (date > dayKey(new Date()) || (date < dayKey(new Date()) && !expected?.stamps.length)) throw new Error('Giornata non disponibile.');
-      const current = expected ?? { date, target, stamps: [] };
+      const current = expected ?? { date, target, stamps: [], rules: dayRules(this.settings.value()) };
       const updated = appendStamp(current, kind, time, Date.now());
       await this.save(updated, expected);
       return true;

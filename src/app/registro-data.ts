@@ -1,4 +1,5 @@
 import { calculateDay, dayKey, earnsMealVoucher, Workday } from './workday';
+import { DEFAULT_RULES } from './work-settings';
 
 export type RegisterView = 'day' | 'week' | 'month';
 export interface RegisterRow {
@@ -8,6 +9,7 @@ export interface RegisterRow {
   work: number;
   balance: number;
   vouchers: number;
+  voucherEligible: boolean;
   provisional: boolean;
   incomplete: boolean;
 }
@@ -35,7 +37,9 @@ export function registerRows(days: Workday[], view: RegisterView, period: string
     }
     const end = day.date === dayKey(new Date(now)) ? now : day.stamps.at(-1)!.time;
     const totals = calculateDay(day, end);
-    const row = rows.get(key) ?? { key, label, days: [], work: 0, balance: 0, vouchers: 0, provisional: !closed, incomplete: !closed && day.date < dayKey(new Date(now)) };
+    const rules = day.rules ?? DEFAULT_RULES;
+    const row = rows.get(key) ?? { key, label, days: [], work: 0, balance: 0, vouchers: 0, voucherEligible: false, provisional: !closed, incomplete: !closed && day.date < dayKey(new Date(now)) };
+    row.voucherEligible ||= rules.voucherEnabled && totals.work > rules.voucherAbove;
     row.days.push(day);
     row.work += totals.work;
     row.balance += totals.work - day.target;

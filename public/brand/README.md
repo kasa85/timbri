@@ -13,6 +13,12 @@ Preparati con lo strumento integrato imagegen. L’interfaccia e le icone PWA pr
 
 Questi PNG sono estrazioni elaborate da imagegen, non sorgenti vettoriali originali.
 
+## Icona app unificata
+
+Le icone attive in `public/icons/` e `public/favicon.ico` usano il colibrì con l’orologio circolare del logo esteso, sullo sfondo sfumato ciano, blu e viola. Il master è `public/icons/timbri-ios.png`; `timbri-original.png` resta il riferimento storico.
+
+Preparata con imagegen integrato usando `timbri-logo-ui.png` come riferimento del simbolo e la precedente icona come riferimento dello sfondo. Prompt: sostituire colibrì e orologio bianco separato con il colibrì e l’orologio circolare integrato del logo esteso, conservando colori, posa e dettagli; rimuovere la scritta, centrare il simbolo con margine del 12% e mantenere lo sfondo sfumato. Le dimensioni derivate sono 512, 192 e 180 px; la favicon è 32 px.
+
 ## Variante per il tema scuro
 
 `timbri-logo-dark.png` è la variante trasparente usata nella Home con tema scuro, anche quando segue il sistema. Il tema chiaro continua a usare `timbri-logo-ui.png`; non viene applicato l’alone CSS.

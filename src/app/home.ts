@@ -1,11 +1,14 @@
 import { calculateDay, dayKey, timelineSegments } from './workday';
 import { StampSheet } from './stamp-sheet';
 import { WorkdayService } from './workday.service';
+import { WorkSettingsService } from './work-settings.service';
+import { dayRules } from './work-settings';
+import { registerDuration } from './registro-data';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { IonContent, IonButton, IonIcon, IonSegment, IonSegmentButton, IonLabel, IonCard, IonCardContent, IonModal, IonRange } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { timeOutline, briefcase, cafe, pieChart, logOutOutline, logInOutline, closeOutline } from 'ionicons/icons';
+import { briefcase, cafe, pieChart, logOutOutline, logInOutline, closeOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-home',
@@ -15,10 +18,9 @@ import { timeOutline, briefcase, cafe, pieChart, logOutOutline, logInOutline, cl
       <img class="home-logo home-logo-light" src="brand/timbri-logo-ui.png" alt="Timbrì" width="300" height="120">
       <img class="home-logo home-logo-dark" src="brand/timbri-logo-dark.png" alt="Timbrì" width="300" height="120">
     </header>
-    <p class="today-date">{{ now() | date:'EEEE d MMMM':'':'it' }}</p>
     <ion-segment #scheduleSegment aria-label="Obiettivo giornaliero" [disabled]="!store.ready() || store.saving() || metrics().state === 'finished'" [value]="selectedSchedule()" (ionChange)="selectSchedule($event.detail.value)">
-      <ion-segment-button value="6"><ion-label>6h</ion-label></ion-segment-button>
-      <ion-segment-button value="9"><ion-label>9h</ion-label></ion-segment-button>
+      <ion-segment-button value="first"><ion-label>{{ duration(settings.value().firstTarget) }}</ion-label></ion-segment-button>
+      <ion-segment-button value="second"><ion-label>{{ duration(settings.value().secondTarget) }}</ion-label></ion-segment-button>
       <ion-segment-button value="custom" (click)="openPersonal()"><ion-label>Personale</ion-label></ion-segment-button>
     </ion-segment>
     <section class="daily-progress" aria-label="Avanzamento del lavoro giornaliero">
@@ -36,7 +38,7 @@ import { timeOutline, briefcase, cafe, pieChart, logOutOutline, logInOutline, cl
             <path class="ring-arc" [attr.d]="arc.path" [attr.stroke]="'url(#' + arc.type + '-arc)'" />
           }
         </svg>
-        <ion-icon name="time-outline" aria-hidden="true" />
+        <p class="clock-date">{{ now() | date:'EEEE':'':'it' }}<br>{{ now() | date:'d MMMM':'':'it' }}</p>
         <strong>{{ now() | date:'HH:mm' }}</strong>
         <span class="clock-status">{{ status() }}</span>
       </div>
@@ -72,18 +74,21 @@ import { timeOutline, briefcase, cafe, pieChart, logOutOutline, logInOutline, cl
 export class Home {
   protected readonly now = signal(new Date());
   protected readonly today = computed(() => dayKey(this.now()));
-  protected readonly schedule = signal('9');
+  protected readonly settings = inject(WorkSettingsService);
+  protected readonly duration = registerDuration;
+  protected readonly schedule = signal<'first' | 'second' | 'custom' | undefined>(undefined);
   protected readonly customMinutes = signal(480);
   protected readonly draftMinutes = signal(480);
   protected readonly personalOpen = signal(false);
   protected readonly store = inject(WorkdayService);
   protected readonly day = computed(() => this.store.days().find(day => day.date === dayKey(this.now())));
-  protected readonly target = computed(() => this.day()?.target ?? (this.schedule() === 'custom' ? this.customMinutes() : Number(this.schedule()) * 60));
-  protected readonly metrics = computed(() => calculateDay(this.day() ?? { date: dayKey(this.now()), target: this.target(), stamps: [] }, this.now().getTime()));
+  private readonly preferredSchedule = computed(() => this.schedule() ?? this.settings.value().defaultSchedule);
+  protected readonly target = computed(() => this.day()?.target ?? (this.preferredSchedule() === 'custom' ? this.customMinutes() : this.preferredSchedule() === 'first' ? this.settings.value().firstTarget : this.settings.value().secondTarget));
+  protected readonly metrics = computed(() => calculateDay(this.day() ?? { date: dayKey(this.now()), target: this.target(), stamps: [], rules: dayRules(this.settings.value()) }, this.now().getTime()));
   // Mostra soltanto i minuti extra completati oltre l’obiettivo netto.
   protected readonly extra = computed(() => Math.max(0, Math.floor(this.metrics().work - this.target())));
-  protected readonly status = computed(() => ({ idle: 'Non timbrato', working: 'In lavoro', paused: 'In pausa', finished: 'Giornata conclusa' })[this.metrics().state]);
-  protected readonly selectedSchedule = computed(() => this.day() ? (this.target() === 360 ? '6' : this.target() === 540 ? '9' : 'custom') : this.schedule());
+  protected readonly status = computed(() => ({ idle: 'Non timbrato', working: 'Lavoro', paused: 'Pausa', finished: 'Conclusa' })[this.metrics().state]);
+  protected readonly selectedSchedule = computed(() => this.day() ? (this.target() === this.settings.value().firstTarget ? 'first' : this.target() === this.settings.value().secondTarget ? 'second' : 'custom') : this.preferredSchedule());
   // Disegna prima gli archi più recenti: le estremità precedenti restano sopra nelle giunzioni.
   protected readonly timelineArcs = computed(() => timelineSegments(this.day(), this.now().getTime())
     .map(segment => ({ type: segment.type, path: this.arcPath(segment.start, segment.end) })).reverse());
@@ -96,7 +101,7 @@ export class Home {
 
   /** Registra le icone e mantiene l’orologio aggiornato, liberando il timer all’uscita. */
   constructor() {
-    addIcons({ timeOutline, briefcase, cafe, pieChart, logOutOutline, logInOutline, closeOutline });
+    addIcons({ briefcase, cafe, pieChart, logOutOutline, logInOutline, closeOutline });
     const timer = window.setInterval(() => this.now.set(new Date()), 1000);
     inject(DestroyRef).onDestroy(() => window.clearInterval(timer));
   }
@@ -112,8 +117,9 @@ export class Home {
 
   /** Aggiorna e salva gli obiettivi fissi anche durante il lavoro o la pausa. */
   protected async selectSchedule(value: string | number | undefined): Promise<void> {
-    if (value !== '6' && value !== '9') return;
-    if (this.day() && !await this.store.changeTarget(Number(value) * 60)) return;
+    if (value !== 'first' && value !== 'second') return;
+    const target = value === 'first' ? this.settings.value().firstTarget : this.settings.value().secondTarget;
+    if (this.day() && !await this.store.changeTarget(target)) return;
     this.schedule.set(value);
   }
 
