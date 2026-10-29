@@ -251,14 +251,14 @@ ion-modal.entry-sheet { --height: min(calc(480px + env(safe-area-inset-bottom)),
 .settings-back { display: inline-flex; align-items: center; gap: 4px; color: var(--ion-color-primary); font-size: 16px; text-decoration: none; margin: 0 0 18px -5px; min-height: 32px; }
 .settings-fields { display: grid; gap: 20px; }
 .settings-fields ion-toggle { width: 100%; }
-.settings-group .notification-toggle {
+.settings-group .settings-toggle {
   display: block;
   width: 100%;
   margin-block: 20px;
   padding: 18px 6px;
   border-block: 1px solid var(--ion-border-color, var(--surface-border));
 }
-.settings-group .notification-toggle + .notification-toggle {
+.settings-group .settings-toggle + .settings-toggle {
   margin-top: -20px;
   border-top: 0;
 }

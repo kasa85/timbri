@@ -1,6 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet, IonModal, IonContent, IonButton, IonToast } from '@ionic/angular';
-import { ExitNotificationService } from './exit-notification.service';
 import { InstallGuideService } from './install-guide.service';
 import { ThemeService } from './theme.service';
 import { StoragePersistenceService } from './storage-persistence.service';
@@ -31,7 +30,6 @@ import { StoragePersistenceService } from './storage-persistence.service';
   </ion-app>`,
 })
 export class App {
-  private readonly notifications = inject(ExitNotificationService);
   protected readonly updateButtons = [{ text: 'Aggiorna', handler: () => this.guide.reload() }];
   private readonly persistence = inject(StoragePersistenceService);
   protected readonly guide = inject(InstallGuideService);

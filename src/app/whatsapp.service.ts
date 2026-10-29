@@ -16,7 +16,7 @@ export class WhatsappService {
     } catch { /* Le preferenze restano disponibili nella sessione. */ }
   }
 
-  /** Conserva l’attivazione separatamente dalle notifiche di sistema. */
+  /** Conserva la preferenza per l’avviso WhatsApp alla chiusura della giornata. */
   setEnabled(enabled: boolean): void {
     this.enabled.set(enabled);
     this.save('timbri-whatsapp-enabled', enabled ? '1' : '0');
@@ -28,7 +28,7 @@ export class WhatsappService {
     this.save('timbri-whatsapp-phone', phone);
   }
 
-  /** Prepara il messaggio con l’ora timbrata e la data per le giornate recuperate. */
+  /** Prepara numero e messaggio, usando su iPhone il collegamento diretto all’app. */
   link(time: number): string | null {
     if (!this.ready() || !Number.isFinite(time)) return null;
     const date = new Date(time);
@@ -36,7 +36,9 @@ export class WhatsappService {
     const today = date.toDateString() === new Date().toDateString();
     const text = today ? `Ho finito di lavorare alle ${hour}. Sto uscendo!`
       : `Ho concluso la giornata lavorativa del ${date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} alle ${hour}.`;
-    return `https://wa.me/${this.number()}?text=${encodeURIComponent(text)}`;
+    const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const base = iphone ? `whatsapp://send?phone=${this.number()}&text=` : `https://wa.me/${this.number()}?text=`;
+    return base + encodeURIComponent(text);
   }
 
   /** Apre WhatsApp nella stessa finestra, evitando popup dopo il salvataggio asincrono. */
