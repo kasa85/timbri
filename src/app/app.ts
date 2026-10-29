@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet, IonModal, IonContent, IonButton } from '@ionic/angular';
 import { InstallGuideService } from './install-guide.service';
 import { ThemeService } from './theme.service';
+import { StoragePersistenceService } from './storage-persistence.service';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,7 @@ import { ThemeService } from './theme.service';
   </ion-app>`,
 })
 export class App {
+  private readonly persistence = inject(StoragePersistenceService);
   protected readonly guide = inject(InstallGuideService);
   protected readonly theme = inject(ThemeService);
 }

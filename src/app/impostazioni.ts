@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { version } from '../../package.json';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { AlertController, ToastController, IonContent, IonSegment, IonSegmentButton, IonLabel, IonButton, IonIcon, IonCard, IonCardContent } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -6,6 +7,7 @@ import { colorPaletteOutline, phonePortraitOutline, sunnyOutline, moonOutline, t
 import { InstallGuideService } from './install-guide.service';
 import { ThemeService } from './theme.service';
 import { WorkdayService } from './workday.service';
+import { StoragePersistenceService } from './storage-persistence.service';
 import { exportCsv, importCsv } from './archive-csv';
 import { dayKey, StampKind } from './workday';
 
@@ -47,6 +49,14 @@ import { dayKey, StampKind } from './workday';
       <p role="status">{{ guide.offline() }}</p>
       <ion-button expand="block" fill="outline" shape="round" (click)="guide.show()">Apri la guida</ion-button>
     </ion-card-content></ion-card>
+    <ion-card class="settings-card"><ion-card-content class="settings-group">
+      <header class="settings-heading"><span class="settings-symbol"><ion-icon name="download-outline" /></span><div><h2>Protezione archivio</h2><p>Conserva le timbrature sul dispositivo.</p></div></header>
+      <p role="status">{{ persistence.message() }}</p>
+      @if (persistence.state() !== 'active' && persistence.state() !== 'unsupported') {
+        <ion-button expand="block" fill="outline" shape="round" [disabled]="!persistence.canRequest()" (click)="persistence.protect()">{{ persistence.requesting() ? 'Richiesta in corso…' : 'Proteggi archivio' }}</ion-button>
+      }
+      <p class="settings-note">La protezione non impedisce la cancellazione manuale dei dati e non recupera lo storico se perdi il telefono. Esporta periodicamente un backup CSV.</p>
+    </ion-card-content></ion-card>
     <ion-card class="settings-card danger-card"><ion-card-content class="settings-group">
       <header class="settings-heading"><span class="settings-symbol"><ion-icon name="warning-outline" /></span><div><h2>Zona pericolosa</h2><p>Cancellazione definitiva dello storico</p></div></header>
       <div class="archive-warning"><strong>Attenzione: perderai tutte le giornate.</strong><p>Verranno eliminate tutte le timbrature, anche quelle di oggi, gli obiettivi salvati e i buoni pasto. Questa operazione non può essere annullata.</p></div>
@@ -54,13 +64,15 @@ import { dayKey, StampKind } from './workday';
       <ion-button class="day-action" color="danger" expand="block" shape="round" [disabled]="!store.ready() || store.saving() || busy() || !store.days().length" (click)="confirmResetArchive()"><ion-icon slot="start" name="trash-outline" />Elimina tutto lo storico</ion-button>
       @if (store.error()) { <p class="settings-error" role="alert">{{ store.error() }}</p> }
     </ion-card-content></ion-card>
-    <p class="version">Timbrì · 0.1.0</p>
+    <p class="version">Timbrì · {{ version }}</p>
   </main></ion-content>`,
 })
 export class Impostazioni {
+  protected readonly version = version;
   protected readonly guide = inject(InstallGuideService);
   protected readonly theme = inject(ThemeService);
   protected readonly store = inject(WorkdayService);
+  protected readonly persistence = inject(StoragePersistenceService);
   private readonly alerts = inject(AlertController);
   private readonly toasts = inject(ToastController);
   protected readonly busy = signal(false);
