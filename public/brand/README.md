@@ -21,6 +21,8 @@ Preparata con imagegen integrato usando `timbri-logo-ui.png` come riferimento de
 
 ## Variante per il tema scuro
 
+Le lancette, il perno centrale e le tacche dell’icona app sono ora bianco ghiaccio `#edf5ff`, come nel logo scuro. Correzione con imagegen integrato: modificare soltanto questi dettagli blu dell’orologio, conservando forme e posizioni; mantenere invariati colibrì, occhio scuro, arco ciano, sfondo e inquadratura. Dal master corretto sono stati ricavati nuovamente i formati PWA, Apple e favicon.
+
 `timbri-logo-dark.png` è la variante trasparente usata nella Home con tema scuro, anche quando segue il sistema. Il tema chiaro continua a usare `timbri-logo-ui.png`; non viene applicato l’alone CSS.
 
 Creata con lo strumento integrato imagegen. Prompt: sostituire il blu scuro della scritta e dei dettagli dell’orologio con bianco ghiaccio #edf5ff, mantenendo tipografia, proporzioni, colibrì e accenti turchesi. Sfondo realmente trasparente, bordi puliti, senza ombre, aloni o residui esterni.
