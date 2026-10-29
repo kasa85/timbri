@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "resources": {
+        "files": [
+          "/favicon.ico",
+          "/brand/**",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/*.css",
+          "/*.js",
+          "/**/*.woff2",
+          "/icons/icon-192.png",
+          "/icons/icon-512.png",
+          "/icons/apple-touch-icon.png"
+        ]
+      }
+    }
+  ]
+}
